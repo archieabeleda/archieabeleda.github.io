@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>netops-automation — Field Report</title>
+<meta name="description" content="Four network automation tools on one inventory and connection layer: config backup and drift detection, change validation, STIG auditing, and IPAM sync.">
+
+<!-- Fonts. These load from Google in the browser. If you ever go offline, the page
+     still works, it just falls back to normal serif and monospace type. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --paper:      #F5F1E8;
+    --paper-sink: #EDE7D9;
+    --ink:        #1C1A17;
+    --ink-soft:   #524C42;
+    --rule:       #D6CDBB;
+    --accent:     #9E3B2C;
+    --accent-dim: rgba(158, 59, 44, 0.10);
+
+    --display: "Fraunces", Georgia, "Times New Roman", serif;
+    --body:    "Newsreader", Georgia, serif;
+    --mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+    --measure: 44rem;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html{ -webkit-text-size-adjust: 100%; }
+
+  body{
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 19px;
+    line-height: 1.6;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap{
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 5rem) clamp(1.25rem, 5vw, 2rem) 4rem;
+  }
+
+  /* ---- shared type helpers ---- */
+  .mono{
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .accent{ color: var(--accent); }
+
+  a{ color: var(--accent); text-decoration: none; }
+  a:hover{ text-decoration: underline; text-underline-offset: 3px; }
+  a:focus-visible{ outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- masthead ---- */
+  .masthead{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--rule);
+    flex-wrap: wrap;
+  }
+
+  /* ---- hero ---- */
+  .hero{ padding: clamp(2rem, 6vw, 3.4rem) 0 0; }
+
+  .hero h1{
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: clamp(2.3rem, 6.4vw, 3.7rem);
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+    margin: 1rem 0 0;
+    max-width: 20ch;
+  }
+
+  .deck{
+    font-size: clamp(1.1rem, 2.4vw, 1.3rem);
+    font-style: italic;
+    color: var(--ink-soft);
+    margin: 1.4rem 0 0;
+    max-width: 38ch;
+    line-height: 1.5;
+  }
+
+  /* ---- stat strip ---- */
+  .stats{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--rule);
+    margin: 2.6rem 0 0;
+  }
+  .stat{
+    padding: 1.1rem 1.15rem 1.25rem;
+    border-right: 1px solid var(--rule);
+  }
+  .stat:last-child{ border-right: 0; }
+  .stat b{
+    display: block;
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 1.85rem;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .stat span{ display: block; margin-top: 0.5rem; }
+
+  /* ---- contents nav ---- */
+  .contents{
+    margin: 3rem 0 0;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+  }
+  .contents ul{
+    list-style: none;
+    margin: 0.9rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+  .contents a{
+    font-family: var(--body);
+    font-size: 1.02rem;
+  }
+
+  /* ---- sections ---- */
+  section{ margin-top: clamp(3rem, 8vw, 4.5rem); }
+
+  .sec-label{ margin-bottom: 0.9rem; }
+
+  h2{
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: clamp(1.6rem, 4vw, 2.1rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 1.1rem;
+  }
+
+  p{ margin: 0 0 1.1rem; }
+  p:last-child{ margin-bottom: 0; }
+
+  .lead{ font-size: 1.12rem; }
+
+  /* ---- toolkit entries ---- */
+  .tool{
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: 0 1.1rem;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  .tool:last-child{ border-bottom: 1px solid var(--rule); }
+  .tool .num{
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 1.7rem;
+    color: var(--accent);
+    line-height: 1;
+    padding-top: 0.15rem;
+  }
+  .tool h3{
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 1.28rem;
+    margin: 0 0 0.4rem;
+  }
+  .tool p{ margin: 0 0 0.8rem; font-size: 1.02rem; color: var(--ink-soft); }
+  .tags{ display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; }
+  .tags .tag{ display: inline-flex; gap: 0.5rem; }
+  .tags .tag em{ font-style: normal; color: var(--accent); }
+
+  /* ---- flow diagram ---- */
+  .flow{ margin: 1.4rem 0 0; }
+  .flow .layer{
+    border: 1px solid var(--ink);
+    padding: 0.85rem 1rem;
+    background: var(--paper-sink);
+    text-align: center;
+  }
+  .flow .layer .k{ font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 0.2rem; }
+  .flow .arrow{ text-align: center; color: var(--ink-soft); font-family: var(--mono); font-size: 0.9rem; padding: 0.5rem 0; }
+  .flow .row{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+    margin-top: 0.2rem;
+  }
+  .flow .row .cell{
+    border: 1px solid var(--rule);
+    padding: 0.7rem 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    text-align: center;
+    background: var(--paper);
+  }
+
+  /* ---- stack chips ---- */
+  .stack{ display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.4rem; }
+  .chip{
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+    border: 1px solid var(--rule);
+    padding: 0.4rem 0.7rem;
+    background: var(--paper-sink);
+  }
+
+  /* ---- code / clone ---- */
+  pre{
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    background: var(--ink);
+    color: #EDE7D9;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+    line-height: 1.55;
+  }
+  pre .c{ color: #A79E8C; }
+
+  .cta{
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--paper);
+    background: var(--accent);
+    padding: 0.75rem 1.3rem;
+    margin-top: 0.5rem;
+  }
+  .cta:hover{ text-decoration: none; background: #86321f; }
+
+  /* ---- footer ---- */
+  footer{
+    margin-top: clamp(3.5rem, 9vw, 5rem);
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* ---- entrance motion (skipped if the reader prefers less motion) ---- */
+  @media (prefers-reduced-motion: no-preference){
+    .reveal{ opacity: 0; transform: translateY(12px); animation: rise 0.7s cubic-bezier(.2,.7,.3,1) forwards; }
+    .r1{ animation-delay: 0.05s; } .r2{ animation-delay: 0.13s; }
+    .r3{ animation-delay: 0.21s; } .r4{ animation-delay: 0.29s; }
+    @keyframes rise{ to{ opacity: 1; transform: none; } }
+  }
+
+  /* ---- mobile ---- */
+  @media (max-width: 560px){
+    body{ font-size: 18px; }
+    .stats{ grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(2){ border-right: 0; }
+    .stat:nth-child(1), .stat:nth-child(2){ border-bottom: 1px solid var(--rule); }
+    .flow .row{ grid-template-columns: repeat(2, 1fr); }
+    .tool{ grid-template-columns: 2.2rem 1fr; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header class="masthead reveal r1">
+    <span class="mono">netops-automation &middot; <span class="accent">field report</span></span>
+    <!-- EDIT: change the date to when you publish -->
+    <span class="mono">Issue 01 &middot; 2026</span>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <div class="hero reveal r2">
+    <span class="mono">Project dossier</span>
+    <h1>Four network tools that share one source of truth.</h1>
+    <p class="deck">Config backup, change validation, STIG auditing, and IPAM sync &mdash;
+      built on a single inventory and connection layer, so multi-vendor networks stay
+      consistent, auditable, and boring in the best possible way.</p>
+
+    <div class="stats">
+      <div class="stat"><b>4</b><span class="mono">Tools</span></div>
+      <div class="stat"><b>1</b><span class="mono">Shared layer</span></div>
+      <div class="stat"><b>Multi</b><span class="mono">Vendor</span></div>
+      <div class="stat"><b>MIT</b><span class="mono">License</span></div>
+    </div>
+  </div>
+
+  <!-- ============ CONTENTS ============ -->
+  <nav class="contents reveal r3" aria-label="In this report">
+    <span class="mono">In this report</span>
+    <ul>
+      <li><a href="#what">What it does</a></li>
+      <li><a href="#toolkit">The toolkit</a></li>
+      <li><a href="#fits">How it fits together</a></li>
+      <li><a href="#built">Built with</a></li>
+      <li><a href="#get">Get the code</a></li>
+    </ul>
+  </nav>
+
+  <!-- ============ 01 WHAT IT DOES ============ -->
+  <section id="what">
+    <div class="mono sec-label">Section 01</div>
+    <h2>What it does</h2>
+    <p class="lead">Networks drift. Someone makes a change on a switch at 2am, nobody
+      writes it down, and three weeks later the running config no longer matches what
+      anyone thinks is deployed. Audits get done by hand. The "source of truth" lives
+      in a spreadsheet that went stale months ago.</p>
+    <p>netops-automation is a small toolkit that attacks that problem from four angles
+      at once. Every tool reads the same device inventory and talks to gear over the
+      same connection layer, so you describe your network once and reuse it everywhere.
+      It's aimed at multi-vendor labs and internal networks where you want change to be
+      tracked, reviewable, and safe to roll back &mdash; without buying a heavyweight
+      platform to get there.</p>
+  </section>
+
+  <!-- ============ 02 THE TOOLKIT ============ -->
+  <section id="toolkit">
+    <div class="mono sec-label">Section 02</div>
+    <h2>The toolkit</h2>
+
+    <div class="tool">
+      <div class="num">1</div>
+      <div>
+        <h3>Config backup &amp; drift detection</h3>
+        <p>Pulls the running config from every device and commits it to Git on a
+          schedule. When a config changes, you get a clean diff of exactly what moved
+          &mdash; so unplanned changes surface instead of hiding.</p>
+        <div class="tags mono">
+          <span class="tag"><em>does</em> pull configs, commit to git</span>
+          <span class="tag"><em>catches</em> untracked changes</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool">
+      <div class="num">2</div>
+      <div>
+        <h3>Pre / post change validation</h3>
+        <p>Snapshots the state that matters (reachability, interfaces, routing, whatever
+          you define) before a change and again after. If something you didn't intend to
+          touch moved, it tells you before you walk away thinking the job's done.</p>
+        <div class="tags mono">
+          <span class="tag"><em>does</em> capture state, compare</span>
+          <span class="tag"><em>catches</em> side effects of a change</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool">
+      <div class="num">3</div>
+      <div>
+        <h3>STIG compliance auditing</h3>
+        <p>Checks device configs against security hardening rules and reports what
+          passes and what doesn't. Turns a manual, error-prone audit into something you
+          can run on demand and hand to whoever asks for evidence.</p>
+        <div class="tags mono">
+          <span class="tag"><em>does</em> check hardening rules</span>
+          <span class="tag"><em>outputs</em> pass / fail report</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool">
+      <div class="num">4</div>
+      <div>
+        <h3>IPAM source-of-truth sync</h3>
+        <p>Reconciles what's actually on the network with NetBox, so your inventory and
+          IP records reflect reality instead of last quarter's plan. The spreadsheet
+          stops being the thing you don't trust.</p>
+        <div class="tags mono">
+          <span class="tag"><em>does</em> sync devices &amp; IPs to netbox</span>
+          <span class="tag"><em>keeps</em> records true</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 HOW IT FITS TOGETHER ============ -->
+  <section id="fits">
+    <div class="mono sec-label">Section 03</div>
+    <h2>How it fits together</h2>
+    <p>The point isn't four scripts. It's four tools sitting on one shared foundation.
+      You define your devices &mdash; hostnames, groups, credentials, per-site variables
+      &mdash; in one inventory. A single connection layer handles getting onto the gear
+      over SSH, so vendor quirks are handled in one place. Each tool then does its own
+      job on top of that.</p>
+
+    <div class="flow" aria-label="Architecture: inventory and connection layer feed four tools">
+      <div class="layer">
+        <span class="k">Layer 1</span>
+        Inventory &mdash; hosts, groups, per-site variables
+      </div>
+      <div class="arrow">&darr;</div>
+      <div class="layer">
+        <span class="k">Layer 2</span>
+        Connection layer &mdash; SSH to multi-vendor devices
+      </div>
+      <div class="arrow">&darr;</div>
+      <div class="row">
+        <div class="cell">Config<br>backup</div>
+        <div class="cell">Change<br>validation</div>
+        <div class="cell">STIG<br>audit</div>
+        <div class="cell">IPAM<br>sync</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 BUILT WITH ============ -->
+  <section id="built">
+    <div class="mono sec-label">Section 04</div>
+    <h2>Built with</h2>
+    <p>Plain Python and well-worn network libraries. Nothing exotic, on purpose &mdash;
+      it should be easy to read, run, and extend.</p>
+    <!-- EDIT: adjust these to match what your repo actually uses -->
+    <div class="stack">
+      <span class="chip">Python</span>
+      <span class="chip">Netmiko</span>
+      <span class="chip">NetBox</span>
+      <span class="chip">Git</span>
+      <span class="chip">STIG benchmarks</span>
+      <span class="chip">GitOps workflow</span>
+      <span class="chip">pytest</span>
+      <span class="chip">pre-commit</span>
+    </div>
+  </section>
+
+  <!-- ============ 05 GET THE CODE ============ -->
+  <section id="get">
+    <div class="mono sec-label">Section 05</div>
+    <h2>Get the code</h2>
+    <p>It's open source under the MIT license. Clone it, read it, run it against a lab.</p>
+    <pre><span class="c"># clone the repo</span>
+git clone https://github.com/archieabeleda/netops-automation.git
+cd netops-automation</pre>
+    <!-- EDIT: point this at your actual repo URL if it ever changes -->
+    <a class="cta" href="https://github.com/archieabeleda/netops-automation">View the repository &rarr;</a>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <span class="mono">Archie Abeleda &middot; 2026</span>
+    <span class="mono"><a href="https://github.com/archieabeleda">github.com/archieabeleda</a></span>
+  </footer>
+
+</main>
+</body>
+</html>
